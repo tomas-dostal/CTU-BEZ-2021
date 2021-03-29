@@ -26,8 +26,6 @@ int main (int argc, char * argv[]) {
     // initialize init_size char array
     int init_size = 10;
     char * chars = (char*) calloc( init_size, sizeof(char));
-    for(int x = 0; x < init_size; x++)
-        chars[x]=0;
 
     /* Inicializace OpenSSL hash funkci, deprecated */
     OpenSSL_add_all_digests();
@@ -41,20 +39,22 @@ int main (int argc, char * argv[]) {
     while(1){
 
         // generate sequential ascii chars (33 to 125 to be printable)
-        while(x < init_size){
-
-            if(chars[x] < CHAR_MAX){
+        while(x < init_size - 1){
+            if(chars[x] < 100){
                 chars[x]++;
                 break;
             } else {
                 x++;
             }
+            if(x == init_size - 1)
+                chars[x] = '\0';
+
             // realloc something slightly bigger
-            if(chars[init_size-1] == CHAR_MAX){
+            if(chars[init_size-1] == 100){
                 init_size+=2;
                 chars = realloc(chars, init_size * sizeof(char));
-                chars[init_size-1] = 0;
-                chars[init_size-2] = 0;
+                chars[init_size-1] = 33;
+                chars[init_size-2] = 33;
             }
         }
 
@@ -100,8 +100,10 @@ int main (int argc, char * argv[]) {
         if(flag)
         {
             // output: first line: hex content of the message
+            //for (unsigned int i = 0; i < init_size; i++)
+            //    printf("%02x", chars[i]);
             for (unsigned int i = 0; i < init_size; i++)
-                printf("%02x", chars[i]);
+                printf("%c", chars[i]);
             printf("\n");
             // second line: hash
             for (unsigned int i = 0; i < length; i++)
