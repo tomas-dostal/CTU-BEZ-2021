@@ -6,7 +6,30 @@
 #include <stdlib.h>
 #include <time.h>
 #include <math.h>
+#define INPUT_SIZE 8
+int check_requirements(const unsigned char hash[EVP_MAX_MD_SIZE], uint32_t hash_len, long initial_zeros) {
+    int flag = 1;
 
+    int counter = 0; // first bits counter
+    // cycle through char array
+    for (long i = 0; i < hash_len; i++) {
+        unsigned char b = hash[i];
+
+        // look for bits in each char.
+        for(int bit = 7; 0 <= bit; bit --) {
+            if (counter <= initial_zeros) {
+                if ((char) ((b >> bit) & 0x01) == 1) {
+                    flag = 0;
+                    break;
+                }
+                counter++;
+            }
+        }
+        if(counter >= initial_zeros)
+            return flag;
+    }
+    return flag;
+}
 
 int main (int argc, char * argv[]) {
     if (argc != 2)
@@ -23,40 +46,15 @@ int main (int argc, char * argv[]) {
         return 8;
     }
 
-    // initialize init_size char array
-    int init_size = 10;
-    char * chars = (char*) calloc( init_size, sizeof(char));
-
-    /* Inicializace OpenSSL hash funkci, deprecated */
+    /* Init OpenSSL hash functions, deprecated */
     OpenSSL_add_all_digests();
 
     const EVP_MD* type = EVP_get_digestbyname("sha384");
     if (type == NULL)
         return 1;
-
-    int x=0;
-    // spagetti whatever, it is C, it is ugly itself
-    while(1){
-
-        // generate sequential ascii chars (33 to 125 to be printable)
-        while(x < init_size - 1){
-            if(chars[x] < 100){
-                chars[x]++;
-                break;
-            } else {
-                x++;
-            }
-            if(x == init_size - 1)
-                chars[x] = '\0';
-
-            // realloc something slightly bigger
-            if(chars[init_size-1] == 100){
-                init_size+=2;
-                chars = realloc(chars, init_size * sizeof(char));
-                chars[init_size-1] = 33;
-                chars[init_size-2] = 33;
-            }
-        }
+    
+    // let's try 8byte uint as a key
+    for(uint64_t input; input < LONG_MAX; input++){
 
         EVP_MD_CTX* ctx = EVP_MD_CTX_create(); // create context for hashing
         if (ctx == NULL)
@@ -65,53 +63,31 @@ int main (int argc, char * argv[]) {
         auto context_initialized = EVP_DigestInit_ex(ctx, type, NULL);
         if (! context_initialized)
             return 3;
-
-        auto message_processed = EVP_DigestUpdate(ctx, chars, strlen(chars));
+        
+        auto message_processed = EVP_DigestUpdate(ctx, (char *)&input, INPUT_SIZE);
         if (! message_processed)
             return 4;
 
         unsigned char hash[EVP_MAX_MD_SIZE]; // char array for hash - 64 bytes (max for sha 512)
-        unsigned int length;  // total len of hash
+        unsigned int hashed_length;  // total len of hash
 
-        auto message_hashed = EVP_DigestFinal_ex(ctx, hash, &length);
+        auto message_hashed = EVP_DigestFinal_ex(ctx, hash, &hashed_length);
         if (! message_hashed)
             return 5;
 
         EVP_MD_CTX_destroy(ctx); // destroy the context
 
-        int flag = 1;
-
-        int index = 0; // first bits counter
-        // cycle through char array
-        for (int i = 0; i < init_size; i++){
-            char b = hash[i];
-            // bits
-            for(int bit = 7; 0 <= bit; bit --)
-                if(index <= number_of_zeros)
-                {
-                    if((char) ((b >> bit) & 0x01) == 1){
-                        flag = 0;
-                        break;
-                }
-                index++;
-            }
-        }
-
-        if(flag)
-        {
+        if(check_requirements(hash, hashed_length, number_of_zeros)){
             // output: first line: hex content of the message
-            //for (unsigned int i = 0; i < init_size; i++)
-            //    printf("%02x", chars[i]);
-            for (unsigned int i = 0; i < init_size; i++)
-                printf("%c", chars[i]);
+            char * in_string = (char *) &input;
+            for (unsigned long i = 0; i < INPUT_SIZE; i++)
+                printf("%02x", in_string[i]);
             printf("\n");
             // second line: hash
-            for (unsigned int i = 0; i < length; i++)
+            for (unsigned int i = 0; i < hashed_length; i++)
                 printf("%02x", hash[i]);
             printf("\n");
 
-            // free alocated memory
-            free(chars);
             return 0;
         }
     }
