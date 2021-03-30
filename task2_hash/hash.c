@@ -37,10 +37,10 @@ int main (int argc, char * argv[]) {
         fprintf(stderr, "Usage: %s number_od_zero_bits\n", argv[0]);
         return 7;
     }
-    // binary has to take only one parameter - number of zero bits (from start) required 
+    // binary has to take only one parameter - number of zero bits (from start) required
     char *ptr;
     long number_of_zeros = strtol(argv[1], &ptr, 10);
-    
+
     if(number_of_zeros > 384){
         fprintf(stderr, "Too many (%s) zero bits required", argv[0]);
         return 8;
@@ -52,9 +52,9 @@ int main (int argc, char * argv[]) {
     const EVP_MD* type = EVP_get_digestbyname("sha384");
     if (type == NULL)
         return 1;
-    
+
     // let's try 8byte uint as a key
-    for(uint64_t input; input < LONG_MAX; input++){
+    for(uint64_t input = 0; input < LONG_MAX; input++){
 
         EVP_MD_CTX* ctx = EVP_MD_CTX_create(); // create context for hashing
         if (ctx == NULL)
@@ -63,8 +63,9 @@ int main (int argc, char * argv[]) {
         auto context_initialized = EVP_DigestInit_ex(ctx, type, NULL);
         if (! context_initialized)
             return 3;
-        
-        auto message_processed = EVP_DigestUpdate(ctx, (char *)&input, INPUT_SIZE);
+        unsigned  char * in_string = (unsigned char *) &input;
+
+        auto message_processed = EVP_DigestUpdate(ctx, in_string, INPUT_SIZE);
         if (! message_processed)
             return 4;
 
@@ -79,7 +80,6 @@ int main (int argc, char * argv[]) {
 
         if(check_requirements(hash, hashed_length, number_of_zeros)){
             // output: first line: hex content of the message
-            char * in_string = (char *) &input;
             for (unsigned long i = 0; i < INPUT_SIZE; i++)
                 printf("%02x", in_string[i]);
             printf("\n");
