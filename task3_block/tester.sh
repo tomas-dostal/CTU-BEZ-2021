@@ -8,19 +8,20 @@ for i in {1..3};
 do
     echo "########## test $i ecb ############## "
 
-    ENCRYPTED="$IMG_FOLDER/$IMG_PREFIX$i.tga"
-    DECRYPTED="$IMG_FOLDER/$IMG_PREFIX$i.tga_ecb.tga"
+    ORIGINAL="$IMG_FOLDER/$IMG_PREFIX$i"
+    ENCRYPTED="$IMG_FOLDER/$IMG_PREFIX$i"_ecb_e.tga
 
-    ./block "e" "ecb" "$ENCRYPTED"
-    ./block "d" "ecb" "$DECRYPTED"
+    ./block "e" "ecb" "$ORIGINAL".tga
+    ./block "d" "ecb" "$ENCRYPTED"
 
-    result=$(diff "$ENCRYPTED" "$IMG_FOLDER/$IMG_PREFIX$i.tga")
+    SUFFIX="_ecb_e_ecb_d.tga"
+    result=$(diff "$ORIGINAL".tga "$IMG_FOLDER/$IMG_PREFIX$i$SUFFIX")
 
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ENCRYPTED"_ecb.tga
-        #rm "$ENCRYPTED"_ecb.tga_dec.tga
+        #rm "$ORIGINAL"_ecb.tga
+        #rm "$ORIGINAL"_ecb.tga_dec.tga
     else
         echo $result    
         failed=$((failed+1))
@@ -32,19 +33,20 @@ for i in {1..3};
 do
     echo "########## test $i cbc ############## "
 
-    ENCRYPTED="$IMG_FOLDER/$IMG_PREFIX$i.tga"
-    DECRYPTED="$IMG_FOLDER/$IMG_PREFIX$i.tga_cbc.tga"
+    ORIGINAL="$IMG_FOLDER/$IMG_PREFIX$i"
+    ENCRYPTED="$IMG_FOLDER/$IMG_PREFIX$i"_cbc_e.tga
 
-    ./block "e" "cbc" "$ENCRYPTED"
-    ./block "d" "cbc" "$DECRYPTED"
+    ./block "e" "cbc" "$ORIGINAL".tga
+    ./block "d" "cbc" "$ENCRYPTED"
 
-    result=$(diff "$ENCRYPTED" "$IMG_FOLDER/$IMG_PREFIX$i.tga")
+    SUFFIX="_cbc_e_cbc_d.tga"
+    result=$(diff "$ORIGINAL".tga "$IMG_FOLDER/$IMG_PREFIX$i$SUFFIX")
 
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ENCRYPTED"_cbc.tga
-        #rm "$ENCRYPTED"_cbc.tga_dec.tga
+        #rm "$ORIGINAL"_cbc.tga
+        #rm "$ORIGINAL"_cbc.tga_dec.tga
     else
         echo $result
         failed=$((failed+1))

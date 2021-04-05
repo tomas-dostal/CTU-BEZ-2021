@@ -99,6 +99,11 @@ int main ( int argc, char * argv [ ] ) {
 
     // read the header
     std :: string fileInName( argv [ 3 ] );
+
+    // remove .tga from file
+    size_t lastIndex = fileInName.find_last_of(".");
+    std::string rawName = fileInName.substr(0, lastIndex);
+
     std :: ifstream fileIn;
 
     fileIn.open( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
@@ -106,20 +111,23 @@ int main ( int argc, char * argv [ ] ) {
     if( !fileIn ) {
         throw std :: invalid_argument(ExceptionFormatter()
                                             << "Unable to open/read the input file. "
-                                            << "Do you have right permissions?");
+                                            << fileInName
+                                            << "\nDo you have right permissions?");
     }
 
     std :: ofstream fileOut;
-    std :: string fileOutName = fileInName; // modify later
+    std :: string fileOutName = rawName;
 
     if ( encrypt ) {
         fileOutName += "_";
         fileOutName += argv [ 2 ];
-        fileOutName += ".tga";
+        fileOutName += "_e.tga";
         fileOut.open ( fileOutName, std :: ofstream :: out | std :: ofstream :: binary );
     }
     else {
-        fileOutName = fileInName + "_dec.tga";
+        fileOutName += "_";
+        fileOutName += argv [ 2 ];
+        fileOutName += "_d.tga";
         fileOut.open( fileOutName, std :: ofstream :: out | std :: ofstream :: binary );
     }
 
@@ -140,19 +148,29 @@ int main ( int argc, char * argv [ ] ) {
     // x	    till end    Image data
 
     fileIn.read( ( char * ) & ih, sizeof( ImageHeader ) );
-
+    if(fileIn.eof())
+        throw  std :: ios_base :: failure (
+                ExceptionFormatter()
+                        << "Unable to read complete header. File does not contain enougth of data"
+        );
     // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
 
     // combination of imageId and colorMap
     char * imageIdColorMap = new char [ ih.lengthOfImageId + ih.lengthOfColorMap ];
     fileIn.read ( imageIdColorMap, ih.lengthOfImageId + ih.lengthOfColorMap );
 
+    if(fileIn.eof())
+        throw  std :: ios_base :: failure (
+                ExceptionFormatter()
+                        << "Unable to read complete header. File does not contain enougth of data"
+        );
     // the rest is imageData. Read by 1024B blocks and en/decrypt to the output file
 
     if( !fileOut )
         throw std :: invalid_argument (
                 ExceptionFormatter()
                 << "Unable to open the output file. "
+                << fileOutName
                 << "Do you have right permissions? "
                 << "Is there enough of space left on the device? "
         );
@@ -224,8 +242,8 @@ int main ( int argc, char * argv [ ] ) {
             fileIn.read ( ( char * ) inBuffer, inLen );
 
             if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, inLen ) ) {
-                EVP_CIPHER_CTX_free( ctx );
-                throw std :: runtime_error( "Unable to finish EVP_CipherUpdate" );
+                EVP_CIPHER_CTX_free ( ctx );
+                throw std :: runtime_error ( "Unable to finish EVP_CipherUpdate" );
             }
 
             fileOut.write ( ( char * ) outBuffer, outLen );
@@ -252,5 +270,5 @@ int main ( int argc, char * argv [ ] ) {
 
         return 0;
     }
-    throw std :: ios_base :: failure( "In/out file is not opened" );
+    throw std :: ios_base :: failure ( "In/out file is not opened" );
 }
