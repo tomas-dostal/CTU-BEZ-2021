@@ -20,8 +20,8 @@ do
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ORIGINAL"_ecb.tga
-        #rm "$ORIGINAL"_ecb.tga_dec.tga
+        #rm "$ORIGINAL"_ecb_e.tga
+        #rm "$ORIGINAL"_ecb_e_ecb_d.tga
     else
         echo $result    
         failed=$((failed+1))
@@ -45,14 +45,35 @@ do
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ORIGINAL"_cbc.tga
-        #rm "$ORIGINAL"_cbc.tga_dec.tga
+        #rm "$ORIGINAL"_cbc_e.tga
+        #rm "$ORIGINAL"_cbc_e_cbc_d.tga
     else
         echo $result
         failed=$((failed+1))
     fi
 
 done
+
+for i in {1..4};
+do
+    echo "########## test $i bad files ############## "
+
+    ORIGINAL="$IMG_FOLDER/$IMG_PREFIX$i"
+
+    ./block "e" "cbc" "$ORIGINAL"bad.tga
+
+    if [ $? -eq 0 ]
+    then
+        echo "Failed"
+        failed=$((failed+1))
+
+    else
+       echo "\n"
+       echo "OK"
+    fi
+
+done
+
 
 echo ""
 echo "Failed: $failed"
