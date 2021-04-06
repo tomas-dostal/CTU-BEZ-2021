@@ -14,39 +14,6 @@
 // - neni dobry napad kombinovat veci jako stream.read a fread.
 // - neni dobry napad tyhle srandy delat vecer pred deadlinem
 
-
-// inspired by https://stackoverflow.com/questions/12261915/how-to-throw-stdexceptions-with-variable-messages
-// Not really needed, but I like it
-
-class ExceptionFormatter {
-
-public:
-    template < typename Type >
-    ExceptionFormatter & operator << ( const Type & value ) {
-        stream_ << value;
-        return * this;
-    }
-    std :: string str() const {
-        return stream_.str();
-    }
-
-    operator std :: string() const {
-        return stream_.str();
-    }
-    enum ConvertToString {
-        to_str
-    };
-
-    std :: string operator >> ( ConvertToString ) {
-        return stream_.str();
-    }
-
-private:
-
-    std :: stringstream stream_;
-
-};
-
 struct ImageHeader {
 
     uint8_t     lengthOfImageId;
@@ -68,11 +35,10 @@ int main ( int argc, char * argv [ ] ) {
     //  FILENAME = arg            file to de/encrypt
 
     if ( argc != 4 ) {
-        throw std :: invalid_argument (
-                ExceptionFormatter() << "Wrong number of arguments.\n"
+        std :: cerr << "Wrong number of arguments.\n"
                         << "Usage: ./block ACTION={e,d} MODE={ecb,cbc,...} FILENAME\n"
-                        << "e.g. ./block e cbc file_to_encrypt.txt"
-        );
+                        << "e.g. ./block e cbc file_to_encrypt.txt"; 
+        return 1; 
     }
     /// @var flag for EVP_Cipher: true = encrypt, false = decrypt
     bool encrypt;
@@ -82,16 +48,17 @@ int main ( int argc, char * argv [ ] ) {
     else if ( argv [ 1 ][ 0 ] == 'd' )
         encrypt = false;
     else {
-        throw std :: invalid_argument( ExceptionFormatter()
+        std :: cerr
             << "Unknown argument ACTION={e,d}: reveiced: '"
-            <<  argv [ 1 ]  << "'"
-        );
+            <<  argv [ 1 ]  << "'"; 
+        return 2;
+
     }
 
     if( std :: strcmp( argv [ 2 ] , "ecb" ) != 0 && std :: strcmp( argv [ 2 ] , "cbc" ) != 0 ) {
-        throw std :: invalid_argument( ExceptionFormatter()
-                                            << "Unknown argument MODE={ecb,cbc}: reveiced: "
-                                            << "'" <<  argv [ 2 ] << "'" );
+        std :: cerr << "Unknown argument MODE={ecb,cbc}: reveiced: "
+                  << "'" <<  argv [ 2 ] << "'";
+        return 3; 
     }
 
     // We are supposed to read and copy unencrypted header and based on header we should figure out imageData length
@@ -109,10 +76,10 @@ int main ( int argc, char * argv [ ] ) {
     fileIn.open( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
 
     if( !fileIn ) {
-        throw std :: invalid_argument(ExceptionFormatter()
-                                            << "Unable to open/read the input file. "
-                                            << fileInName
-                                            << "\nDo you have right permissions?");
+        std :: cerr   << "Unable to open/read the input file. "
+                    << fileInName
+                    << "\nDo you have right permissions?"; 
+        return 4; 
     }
 
     std :: ofstream fileOut;
@@ -148,11 +115,11 @@ int main ( int argc, char * argv [ ] ) {
     // x	    till end    Image data
 
     fileIn.read( ( char * ) & ih, sizeof( ImageHeader ) );
-    if(fileIn.eof())
-        throw  std :: ios_base :: failure (
-                ExceptionFormatter()
-                        << "Unable to read complete header. File does not contain enougth of data"
-        );
+    if( fileIn.eof() ) {
+        std :: cerr << "Unable to read complete header. File does not contain enougth of data";
+        return 5; 
+    }
+    
     // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
 
     // combination of imageId and colorMap
@@ -160,20 +127,20 @@ int main ( int argc, char * argv [ ] ) {
     fileIn.read ( imageIdColorMap, ih.lengthOfImageId + ih.lengthOfColorMap );
 
     if(fileIn.eof())
-        throw  std :: ios_base :: failure (
-                ExceptionFormatter()
-                        << "Unable to read complete header. File does not contain enougth of data"
-        );
+    {
+        std :: cerr << "Unable to read complete header. File does not contain enougth of data";
+        return 6; 
+    }     
+    
     // the rest is imageData. Read by 1024B blocks and en/decrypt to the output file
 
-    if( !fileOut )
-        throw std :: invalid_argument (
-                ExceptionFormatter()
-                << "Unable to open the output file. "
-                << fileOutName
-                << "Do you have right permissions? "
-                << "Is there enough of space left on the device? "
-        );
+    if( !fileOut ) {
+        std :: cerr   << "Unable to open the output file. "
+                    << fileOutName
+                    << "Do you have right permissions? "
+                    << "Is there enough of space left on the device? ";
+        return 7;
+    }
     // write binary representation of ImageHeader fo outfile
     fileOut.write ( ( char * ) &ih, sizeof( ImageHeader ) );
 
@@ -195,22 +162,24 @@ int main ( int argc, char * argv [ ] ) {
     cipher = EVP_get_cipherbyname( cipherName.c_str() );
 
     if ( !cipher ) {
-        throw std :: invalid_argument (
-                ExceptionFormatter()
-                    << "Cipher '" << cipherName
-                    << " not found."
-        );
+        std :: cerr << "Cipher '" << cipherName << " not found.";
+        return 8;
     }
     // context structure
     EVP_CIPHER_CTX * ctx;
     ctx = EVP_CIPHER_CTX_new();
-    if ( ctx == NULL )
-        throw std :: invalid_argument( ExceptionFormatter() << "Unable to initialize context structure" );
+    if ( ctx == NULL ) {
+        std :: cerr << "Unable to initialize context structure";
+        return 9; 
+    }
+        
 
     // Encrypt when 'encrypt' == true, otherwise decrypt
     // context init - set cipher, key, init vector
-    if ( !EVP_CipherInit_ex ( ctx, cipher, NULL, key, iv, encrypt ) )
-        throw std :: runtime_error ( "EVP_CipherInit_ex failure" );
+    if ( !EVP_CipherInit_ex ( ctx, cipher, NULL, key, iv, encrypt ) ) {
+        std :: cerr << "EVP_CipherInit_ex failure";
+        return 10;
+    }
 
     // Allow enough space in output buffer for additional block
     unsigned char inBuffer [ 1024 ], outBuffer [ 1024 + EVP_MAX_BLOCK_LENGTH ];
@@ -243,7 +212,8 @@ int main ( int argc, char * argv [ ] ) {
 
             if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, inLen ) ) {
                 EVP_CIPHER_CTX_free ( ctx );
-                throw std :: runtime_error ( "Unable to finish EVP_CipherUpdate" );
+                std :: cerr << "Unable to finish EVP_CipherUpdate";
+                return 11;
             }
 
             fileOut.write ( ( char * ) outBuffer, outLen );
@@ -257,9 +227,14 @@ int main ( int argc, char * argv [ ] ) {
 
         if ( !EVP_CipherFinal_ex ( ctx, outBuffer, &outLen ) ) {
             EVP_CIPHER_CTX_free( ctx );
-            if ( encrypt )
-                throw std :: runtime_error ( "Encrytion failure" );
-            else throw std :: runtime_error ( "Decryption failure" );
+            if ( encrypt ) {
+                std :: cerr << "Encrytion failure";
+                return 12;
+            }
+            else {
+                std :: cerr << "Decryption failure" ;
+                return 13;   
+            } 
         }
         fileOut.write ( ( char * ) outBuffer, outLen );
 
@@ -270,5 +245,7 @@ int main ( int argc, char * argv [ ] ) {
 
         return 0;
     }
-    throw std :: ios_base :: failure ( "In/out file is not opened" );
+    
+    std :: cerr << "In/out file is not opened";
+    return 14; 
 }
