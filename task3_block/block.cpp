@@ -36,9 +36,9 @@ int main ( int argc, char * argv [ ] ) {
 
     if ( argc != 4 ) {
         std :: cerr << "Wrong number of arguments.\n"
-                        << "Usage: ./block ACTION={e,d} MODE={ecb,cbc,...} FILENAME\n"
-                        << "e.g. ./block e cbc file_to_encrypt.txt"; 
-        return 1; 
+                    << "Usage: ./block ACTION={e,d} MODE={ecb,cbc,...} FILENAME\n"
+                    << "e.g. ./block e cbc file_to_encrypt.txt";
+        return 1;
     }
     /// @var flag for EVP_Cipher: true = encrypt, false = decrypt
     bool encrypt;
@@ -49,16 +49,16 @@ int main ( int argc, char * argv [ ] ) {
         encrypt = false;
     else {
         std :: cerr
-            << "Unknown argument ACTION={e,d}: reveiced: '"
-            <<  argv [ 1 ]  << "'"; 
+                << "Unknown argument ACTION={e,d}: reveiced: '"
+                <<  argv [ 1 ]  << "'";
         return 2;
 
     }
 
     if( std :: strcmp( argv [ 2 ] , "ecb" ) != 0 && std :: strcmp( argv [ 2 ] , "cbc" ) != 0 ) {
         std :: cerr << "Unknown argument MODE={ecb,cbc}: reveiced: "
-                  << "'" <<  argv [ 2 ] << "'";
-        return 3; 
+                    << "'" <<  argv [ 2 ] << "'";
+        return 3;
     }
 
     // We are supposed to read and copy unencrypted header and based on header we should figure out imageData length
@@ -77,9 +77,9 @@ int main ( int argc, char * argv [ ] ) {
 
     if( !fileIn ) {
         std :: cerr   << "Unable to open/read the input file. "
-                    << fileInName
-                    << "\nDo you have right permissions?"; 
-        return 4; 
+                      << fileInName
+                      << "\nDo you have right permissions?";
+        return 4;
     }
 
     std :: ofstream fileOut;
@@ -117,37 +117,37 @@ int main ( int argc, char * argv [ ] ) {
     fileIn.read( ( char * ) & ih, sizeof( ImageHeader ) );
     if( fileIn.eof() ) {
         std :: cerr << "Unable to read complete header. File does not contain enougth of data";
-        return 5; 
+        return 5;
     }
-    
+
     // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
+    // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
+    // combination of imageId and colorMap
+    unsigned long colorMapBytes = ih.lengthOfColorMap * ceil( ih.bitDepth / 8 );
 
-    char * imageId = new char [ ih.lengthOfImageId ];
-    char * colorMap = new char [ ih.lengthOfColorMap *  (long) ceil( ih.bitDepth / 8 ) ]; // should create enough of space
+    char * imageIdColorMap = new char [ ih.lengthOfImageId + colorMapBytes];
+    fileIn.read ( imageIdColorMap, ih.lengthOfImageId + colorMapBytes );
 
-    fileIn.read ( imageId, ih.lengthOfImageId);
-    fileIn.read ( colorMap, ih.lengthOfColorMap * (long) ceil( ih.bitDepth / 8 ) );
 
     if(fileIn.eof())
     {
         std :: cerr << "Unable to read complete header. File does not contain enougth of data";
-        return 6; 
-    }     
-    
+        return 6;
+    }
+
     // the rest is imageData. Read by 1024B blocks and en/decrypt to the output file
 
     if( !fileOut ) {
         std :: cerr   << "Unable to open the output file. "
-                    << fileOutName
-                    << "Do you have right permissions? "
-                    << "Is there enough of space left on the device? ";
+                      << fileOutName
+                      << "Do you have right permissions? "
+                      << "Is there enough of space left on the device? ";
         return 7;
     }
     // write binary representation of ImageHeader fo outfile
     fileOut.write ( ( char * ) &ih, sizeof( ImageHeader ) );
 
-    fileOut.write ( imageId, ih.lengthOfImageId );
-    fileOut.write ( colorMap, ih.lengthOfColorMap * (ih.bitDepth / sizeof(char))); // Number of characters to insert.
+    fileOut.write ( imageIdColorMap, ih.lengthOfImageId + colorMapBytes );
     // Integer value of type streamsize representing the size in characters of the block of data to write.
     //        streamsize is a signed integral type.;
 
@@ -159,7 +159,7 @@ int main ( int argc, char * argv [ ] ) {
     unsigned char iv [ EVP_MAX_IV_LENGTH ] = "before progtest";
 
     std :: string cipherName = "aes-128-";
-    cipherName += argv [ 2 ]; 
+    cipherName += argv [ 2 ];
 
     const EVP_CIPHER * cipher;
     OpenSSL_add_all_ciphers();
@@ -175,9 +175,9 @@ int main ( int argc, char * argv [ ] ) {
     ctx = EVP_CIPHER_CTX_new();
     if ( ctx == NULL ) {
         std :: cerr << "Unable to initialize context structure";
-        return 9; 
+        return 9;
     }
-        
+
 
     // Encrypt when 'encrypt' == true, otherwise decrypt
     // context init - set cipher, key, init vector
@@ -188,64 +188,47 @@ int main ( int argc, char * argv [ ] ) {
 
     // Allow enough space in output buffer for additional block
     unsigned char inBuffer [ 1024 ], outBuffer [ 1024 + EVP_MAX_BLOCK_LENGTH ];
-    int inLen = 1024;
-    int outLen;
-
-    //int cryptoReadStart = fileIn.tellg();  // here should start data to encrypt/decrypt
-
+    int inLen, outLen;
+    int cryptoReadStart = fileIn.tellg();  // here should start data to encrypt/decrypt
     // this might not be the ideal way, but I need to find how many bytes are remaining till the end of
     // the input file
-
-    //fileIn.seekg( 0, std :: ifstream :: end );
-    //int cryptoReadTotal = fileIn.tellg(); // total len of input file
-
+    fileIn.seekg( 0, std :: ifstream :: end );
+    int cryptoReadTotal = fileIn.tellg(); // total len of input file
     // why I need to close the stream and reopen it ?
-    //fileIn.close();
-    //fileIn.open ( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
-
-    //fileIn.seekg ( cryptoReadStart, std :: ifstream :: cur ); // get back to the position before
-
+    fileIn.close();
+    fileIn.open ( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
+    fileIn.seekg ( cryptoReadStart, std :: ifstream :: cur ); // get back to the position before
     if ( fileIn.is_open() && fileOut.is_open() )
     {
-        while ( fileIn.gcount()  > 0 ){
+        while ( floor(( cryptoReadTotal - cryptoReadStart ) / 1024 ) >= 0 ){
             // read 1024 bytes, there are >=1024 bytes left in the instream
+            if ( (  cryptoReadTotal - cryptoReadStart ) > 1024 )
+                inLen = 1024; // read this amount of bytes
+            else
+                inLen = cryptoReadTotal - cryptoReadStart; // read the rest of bytes
             fileIn.read ( ( char * ) inBuffer, inLen );
-            if ( fileIn.eof() )
-                break;
-
-            if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, fileIn.gcount() ) ) {
-                EVP_CIPHER_CTX_free ( ctx );
-                std :: cerr << "Unable to finish EVP_CipherUpdate";
-                return 11;
+            if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, inLen ) ) {
+                EVP_CIPHER_CTX_free( ctx );
+                throw std :: runtime_error( "Unable to finish EVP_CipherUpdate" );
             }
-
             fileOut.write ( ( char * ) outBuffer, outLen );
-
+            cryptoReadStart += inLen;
+            if ( cryptoReadStart == cryptoReadTotal )
+                break;
         }
-
-
         if ( !EVP_CipherFinal_ex ( ctx, outBuffer, &outLen ) ) {
             EVP_CIPHER_CTX_free( ctx );
-            if ( encrypt ) {
-                std :: cerr << "Encrytion failure";
-                return 12;
-            }
-            else {
-                std :: cerr << "Decryption failure" ;
-                return 13;   
-            } 
+            if ( encrypt )
+                throw std :: runtime_error ( "Encrytion failure" );
+            else throw std :: runtime_error ( "Decryption failure" );
         }
         fileOut.write ( ( char * ) outBuffer, outLen );
-
         EVP_CIPHER_CTX_free ( ctx );
-        delete [] imageId;
-        delete [] colorMap;
+        delete [] imageIdColorMap;
         fileIn.close();
         fileOut.close();
-
         return 0;
     }
-    
     std :: cerr << "In/out file is not opened";
-    return 14; 
+    return 14;
 }
