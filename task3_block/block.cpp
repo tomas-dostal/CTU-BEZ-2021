@@ -209,7 +209,8 @@ int main ( int argc, char * argv [ ] ) {
             fileIn.read ( ( char * ) inBuffer, inLen );
             if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, inLen ) ) {
                 EVP_CIPHER_CTX_free( ctx );
-                throw std :: runtime_error( "Unable to finish EVP_CipherUpdate" );
+                std :: cerr <<  "Unable to finish EVP_CipherUpdate" ;
+                return 11;
             }
             fileOut.write ( ( char * ) outBuffer, outLen );
             cryptoReadStart += inLen;
@@ -218,9 +219,14 @@ int main ( int argc, char * argv [ ] ) {
         }
         if ( !EVP_CipherFinal_ex ( ctx, outBuffer, &outLen ) ) {
             EVP_CIPHER_CTX_free( ctx );
-            if ( encrypt )
-                throw std :: runtime_error ( "Encrytion failure" );
-            else throw std :: runtime_error ( "Decryption failure" );
+            if ( encrypt ) {
+                std :: cerr << "Encrytion failure";
+                return 12;
+            }
+            else {
+                std :: cerr << "Decryption failure";
+                return 13;
+            }
         }
         fileOut.write ( ( char * ) outBuffer, outLen );
         EVP_CIPHER_CTX_free ( ctx );
