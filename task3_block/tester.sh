@@ -20,8 +20,8 @@ do
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ORIGINAL"_ecb_e.tga
-        #rm "$ORIGINAL"_ecb_e_ecb_d.tga
+        rm "$ORIGINAL"_ecb_e.tga
+        rm "$ORIGINAL"_ecb_e_ecb_d.tga
     else
         echo $result    
         failed=$((failed+1))
@@ -45,8 +45,8 @@ do
     if [ $? -eq 0 ]
     then
         echo "OK"
-        #rm "$ORIGINAL"_cbc_e.tga
-        #rm "$ORIGINAL"_cbc_e_cbc_d.tga
+        rm "$ORIGINAL"_cbc_e.tga
+        rm "$ORIGINAL"_cbc_e_cbc_d.tga
     else
         echo $result
         failed=$((failed+1))
@@ -61,14 +61,15 @@ do
     ORIGINAL="$IMG_FOLDER/$IMG_PREFIX$i"
 
     ./block "e" "cbc" "$ORIGINAL"bad.tga
-
-    if [ $? -eq 0 ]
+    RET=$?
+    if [ $RET -eq 0 ]
     then
         echo "Failed"
         failed=$((failed+1))
 
     else
-       echo "\n"
+       echo ""
+       echo "Return code: $RET"
        echo "OK"
     fi
 
