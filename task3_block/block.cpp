@@ -123,10 +123,10 @@ int main ( int argc, char * argv [ ] ) {
     // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
 
     char * imageId = new char [ ih.lengthOfImageId ];
-    char * colorMap = new char [ ih.lengthOfColorMap *  (long) ceil( ih.bitDepth / sizeof(char)) ]; // should create enough of space
+    char * colorMap = new char [ ih.lengthOfColorMap *  (long) ceil( ih.bitDepth / 8 ) ]; // should create enough of space
 
     fileIn.read ( imageId, ih.lengthOfImageId);
-    fileIn.read ( colorMap, ih.lengthOfColorMap * (long) ceil( ih.bitDepth / sizeof(char) ) );
+    fileIn.read ( colorMap, ih.lengthOfColorMap * (long) ceil( ih.bitDepth / 8 ) );
 
     if(fileIn.eof())
     {
@@ -188,34 +188,32 @@ int main ( int argc, char * argv [ ] ) {
 
     // Allow enough space in output buffer for additional block
     unsigned char inBuffer [ 1024 ], outBuffer [ 1024 + EVP_MAX_BLOCK_LENGTH ];
-    int inLen, outLen;
+    int inLen = 1024;
+    int outLen;
 
-    int cryptoReadStart = fileIn.tellg();  // here should start data to encrypt/decrypt
+    //int cryptoReadStart = fileIn.tellg();  // here should start data to encrypt/decrypt
 
     // this might not be the ideal way, but I need to find how many bytes are remaining till the end of
     // the input file
 
-    fileIn.seekg( 0, std :: ifstream :: end );
-    int cryptoReadTotal = fileIn.tellg(); // total len of input file
+    //fileIn.seekg( 0, std :: ifstream :: end );
+    //int cryptoReadTotal = fileIn.tellg(); // total len of input file
 
     // why I need to close the stream and reopen it ?
-    fileIn.close();
-    fileIn.open ( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
+    //fileIn.close();
+    //fileIn.open ( fileInName, std :: ifstream :: in | std :: ifstream :: binary );
 
-    fileIn.seekg ( cryptoReadStart, std :: ifstream :: cur ); // get back to the position before
+    //fileIn.seekg ( cryptoReadStart, std :: ifstream :: cur ); // get back to the position before
 
     if ( fileIn.is_open() && fileOut.is_open() )
     {
-        while ( floor(( cryptoReadTotal - cryptoReadStart ) / 1024 ) >= 0 ){
+        while ( fileIn.gcount()  > 0 ){
             // read 1024 bytes, there are >=1024 bytes left in the instream
-            if ( (  cryptoReadTotal - cryptoReadStart ) > 1024 )
-                inLen = 1024; // read this amount of bytes
-            else
-                inLen = cryptoReadTotal - cryptoReadStart; // read the rest of bytes
-
             fileIn.read ( ( char * ) inBuffer, inLen );
+            if ( fileIn.eof() )
+                break;
 
-            if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, inLen ) ) {
+            if ( !EVP_CipherUpdate ( ctx, outBuffer, &outLen, inBuffer, fileIn.gcount() ) ) {
                 EVP_CIPHER_CTX_free ( ctx );
                 std :: cerr << "Unable to finish EVP_CipherUpdate";
                 return 11;
@@ -223,10 +221,6 @@ int main ( int argc, char * argv [ ] ) {
 
             fileOut.write ( ( char * ) outBuffer, outLen );
 
-            cryptoReadStart += inLen;
-
-            if ( cryptoReadStart == cryptoReadTotal )
-                break;
         }
 
 
