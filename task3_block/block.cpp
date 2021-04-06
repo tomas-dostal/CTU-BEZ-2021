@@ -20,7 +20,7 @@ struct ImageHeader {
     uint8_t     colorMapType;
     uint8_t     imageType;
     uint16_t    startColorMap;
-    uint16_t    lengthOfColorMap;
+    uint16_t    lengthOfColorMap; // number of items in color map
     uint8_t     bitDepth;
     unsigned char imageSpecification [ 10 ];
 
@@ -122,9 +122,11 @@ int main ( int argc, char * argv [ ] ) {
     
     // now based on data in ImageHeader we know how many bytes to allocate for imageId and colorMap
 
-    // combination of imageId and colorMap
-    char * imageIdColorMap = new char [ ih.lengthOfImageId + ih.lengthOfColorMap ];
-    fileIn.read ( imageIdColorMap, ih.lengthOfImageId + ih.lengthOfColorMap );
+    char * imageId = new char [ ih.lengthOfImageId ];
+    char * colorMap = new char [ ih.lengthOfColorMap *  (long) ceil( ih.bitDepth / sizeof(char)) ]; // should create enough of space
+
+    fileIn.read ( imageId, ih.lengthOfImageId);
+    fileIn.read ( colorMap, ih.lengthOfColorMap * (long) ceil( ih.bitDepth / sizeof(char) ) );
 
     if(fileIn.eof())
     {
@@ -144,7 +146,10 @@ int main ( int argc, char * argv [ ] ) {
     // write binary representation of ImageHeader fo outfile
     fileOut.write ( ( char * ) &ih, sizeof( ImageHeader ) );
 
-    fileOut.write ( imageIdColorMap, ih.lengthOfImageId + ih.lengthOfColorMap );
+    fileOut.write ( imageId, ih.lengthOfImageId );
+    fileOut.write ( colorMap, ih.lengthOfColorMap * (ih.bitDepth / sizeof(char))); // Number of characters to insert.
+    // Integer value of type streamsize representing the size in characters of the block of data to write.
+    //        streamsize is a signed integral type.;
 
     // do the en/decrypt stuff
 
@@ -239,7 +244,8 @@ int main ( int argc, char * argv [ ] ) {
         fileOut.write ( ( char * ) outBuffer, outLen );
 
         EVP_CIPHER_CTX_free ( ctx );
-        delete [] imageIdColorMap;
+        delete [] imageId;
+        delete [] colorMap;
         fileIn.close();
         fileOut.close();
 
