@@ -65,7 +65,10 @@ public:
         }
 
         keyFile = fopen(pKeyPath.c_str(), "r");
-
+        if (!keyFile) {
+            std::cerr << "invalid private key. For encrypt use publickey, for decrypt use privatekey" << std::endl;
+            throw std::invalid_argument("Unable to read public/private key. For encrypt use publickey");
+        }
         ctx = EVP_CIPHER_CTX_new();
         if(!ctx){
             std::cerr << "Unable to create context" << std::endl;
@@ -161,11 +164,6 @@ public:
 
         // read private key
         pKey = PEM_read_PrivateKey(keyFile, NULL, NULL, NULL);
-
-        if (!keyFile) {
-            std::cerr << "invalid private key. For encrypt use publickey, for decrypt use privatekey" << std::endl;
-            return 5;
-        }
         if(!pKey){
             std::cerr << "Unable to read pKey" << std::endl;
             return 6;
@@ -286,10 +284,11 @@ int main ( int argc, char * argv [ ] ) {
     if(argc == 6)
         cipherName = argv [ 5 ] ;
 
-    Asymetric asymetric(pkey, fileInName, fileOutName, cipherName);
-    // this is not an elegant solution, but I wanted to save as much duplicate code as possible, thus
-    // there is o lot of code in constructor
     try {
+
+        Asymetric asymetric(pkey, fileInName, fileOutName, cipherName);
+        // this is not an elegant solution, but I wanted to save as much duplicate code as possible, thus
+        // there is o lot of code in constructor
         if( argv [ 1 ][ 0 ] == 'e' )
             return asymetric.encrypt();
         else if ( argv [ 1 ][ 0 ] == 'd' )
